@@ -1,6 +1,6 @@
 -module(mandelbrot).
 -import(mandelbrot_lib, [mandelbrot/1, split/2, complex/5]).
--export([start/2, server/2, servant/2, client/1, controller/3]).
+-export([start/2, server/2, servant/2, client/1, controller/3, timed_start/2]).
 
 
 server(Creator, WaitingList) ->
@@ -81,9 +81,11 @@ start(N, NJobs) ->  % output is of size NxN
             io:write(S, Mandelbrot),
             file:close(S)
     after 120000 ->
-        exit('ERROR')
+        exit(timeout)
     end.
 
 
 
-% timer:tc(mandelbrot:start(100,1))  : compute execution time
+timed_start(N,Jobs) ->
+    {Ms, _} = timer:tc(fun(X,Y)->start(X,Y) end, [N,Jobs]),  % compute execution time
+    Ms/1000.
