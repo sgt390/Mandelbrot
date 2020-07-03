@@ -19,6 +19,8 @@ print(f'working with {len(mandelbrot)} points...')
 
 size = int(sqrt(len(mandelbrot)))
 shape = (size, size)
+# resize in case of not "squared" shape (for error cases)
+mandelbrot = mandelbrot[:size*size]
 heatmap = np.reshape(mandelbrot, shape).T
 
 print('printing...')
