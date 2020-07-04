@@ -4,7 +4,7 @@
 
 
 server(Creator, WaitingList) ->
-
+    process_flag(trap_exit, true),
     receive
         {req, {Client, F, Args}} ->
             Servant = spawn_link(mandelbrot_errors, servant,[F, Args]),
@@ -24,18 +24,40 @@ server(Creator, WaitingList) ->
             Elem = lists:keyfind(Client, 2, WaitingList),
             case Elem of
                 {Servant, _, F, Args} ->
+                    exit(Servant, stopped), % Servant is no longer required
                     server(Creator, WaitingList -- [{Servant, Client, F, Args}]);
                 false ->
                     server(Creator, WaitingList)
             end;
 
+        {'EXIT', Servant, servant_error} ->
+            Elem = lists:keyfind(Servant, 1, WaitingList),
+            case Elem of
+                {_, Client, F, Args} ->
+                    io:fwrite("servant failed (0): ~n"),
+                    NewServant = spawn_link(mandelbrot_errors, servant,[F, Args]),
+                    server(Creator, [{NewServant, Client, F, Args} | WaitingList--[{Servant, Client, F, Args}]]);
+                false ->
+                    io:fwrite("servant failed (1): ~n"),
+                    server(Creator, WaitingList)
+            end;
         {stop, Creator} ->
             stopped
     end.
 
 
 servant(F, Args) ->
-    pserver ! {answ, {self(), F(Args)}}.
+    case rand:uniform(3) of
+        1 ->
+            exit(servant_error);
+        _ ->
+            case pserver == undefined of
+                true ->
+                    exit(server_down);
+                false ->  % not atomic?
+                    pserver ! {answ, {self(), F(Args)}}
+            end
+    end.
 
 client(Complex) -> % modified just to make it fail.
     Msg = {self(), fun(Comp)->mandelbrot_lib:mandelbrot(Comp) end, {Complex}},
@@ -111,10 +133,10 @@ start(N, NJobs) ->  % output is of size NxN
     % split evenly between each job. The last job can have less to do.
     receive
         {Controller, Mandelbrot} ->
+            io:fwrite("done: length = ~w~n", [length(Mandelbrot)]),
             Server ! {stop, self()},
             io:write(S, Mandelbrot),
-            file:close(S),
-            io:fwrite("done: length = ~w~n", [length(Mandelbrot)])
+            file:close(S)
     after 120000 ->
         exit(timeout)
     end.
