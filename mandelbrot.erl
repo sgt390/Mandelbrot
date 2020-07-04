@@ -51,10 +51,7 @@ controller(Creator, Complex, Size) ->
     Creator ! {self(), Res}.
 
 
-composer([], Results) ->  
-    % flattens the lists and reverse to undo
-    % the implicit reverse of mandelbrot_lib:split
-    % and decomposer
+composer([], Results) ->
     lists:reverse(lists:flatten([Y || {_, Y} <- lists:sort(Results)]));
 
 composer(WaitingList, Results) ->
